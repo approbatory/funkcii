@@ -67,7 +67,8 @@ def detect(real_traces, is_sparse=False):
     transients_cleaned = sliding_average(transients_sub_med)
     transients_maxima = detect_maxima(transients_cleaned)
     transient_canvas = expand_transients(transients_maxima, transients_cleaned)
-    transient_history = include_history(transient_canvas)
+    ####transient_history = include_history(transient_canvas)
+    transient_history = transient_canvas
     #transient_dots = process_transient_dots(transients_maxima, transients_cleaned)
     #cell_ids, time_inds, magnitudes = transient_dots
 

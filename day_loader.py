@@ -5,9 +5,16 @@ import place_decoder
 import transient_detection as tdet
 import pandas as pd
 import visual_analyzer
+from joblib import Memory
 
-DIVS = 13
+DIVS = 11
 TRAIN_FRACTION = 0.5
+MAKE_MOVIE = False
+N_SHUFS = 5000
+N_BATCH = 20
+LOOKBACK = 8
+
+memory = Memory(cachedir='/tmp/tmp_day_loader_joblib', verbose=0)
 
 def get_by_ext(dirname, ext):
     fs = list(glob(dirname + '/*.' + ext))
@@ -37,28 +44,78 @@ def load_from_dir(dirname):
 
     return real_traces, xy_pos, t_ranges
 
-def process_dir(dirname):
+def process_dir_proc(dirname, proc):
     print "Loading files..."
     traces, xy, t_ranges = load_from_dir(dirname)
     print "Detecting transients..."
-    transients = tdet.detect(traces)
+    transients = memory.cache(tdet.detect)(traces)
+    proc(transients, xy, t_ranges)
+
+def my_eval_proc(transients, xy, t_ranges):
     print "Evaluating decoder..."
     err, errmat, inference_mats, actual_mats, times =\
-        place_decoder.evaluate(transients, xy, DIVS, TRAIN_FRACTION, t_ranges)
+        memory.cache(place_decoder.evaluate)(transients, xy, DIVS, TRAIN_FRACTION, N_SHUFS, N_BATCH, LOOKBACK, t_ranges)
+    #np.random.shuffle(transients.T)
+    #base_err = place_decoder.evaluate(transients, xy, DIVS, TRAIN_FRACTION, N_SHUFS, N_BATCH, LOOKBACK, t_ranges)[0]
     print 'avg err rate is %f%%' % (100*err)
+    #print 'baseerr rate is %f%%' % (100*base_err)
     errmat[np.isnan(errmat)] = -0.01
     print np.int64(np.round(errmat*100))
     print 'calculated from %d trials (nonprobe)' % len(t_ranges)
-    print "making movie..."
-    visual_analyzer.make_movie(inference_mats, actual_mats, times, DIVS,\
+    if MAKE_MOVIE:
+        print "making movie..."
+        visual_analyzer.make_movie(inference_mats, actual_mats, times, DIVS,\
                                                  dirname+'/decoded.mp4')
-    print 'made movie'
+        print 'made movie'
     print
+
+
+#def process_dir(dirname):
+#    print "Loading files..."
+#    traces, xy, t_ranges = load_from_dir(dirname)
+#    print "Detecting transients..."
+#    transients = tdet.detect(traces)
+#    print "Evaluating decoder..."
+#    err, errmat, inference_mats, actual_mats, times =\
+#        place_decoder.evaluate(transients, xy, DIVS, TRAIN_FRACTION, N_SHUFS, N_BATCH, LOOKBACK, t_ranges)
+#    np.random.shuffle(transients.T)
+#    base_err = place_decoder.evaluate(transients, xy, DIVS, TRAIN_FRACTION, N_SHUFS, N_BATCH, LOOKBACK, t_ranges)[0]
+#    print 'avg err rate is %f%%' % (100*err)
+#    print 'baseerr rate is %f%%' % (100*base_err)
+#    errmat[np.isnan(errmat)] = -0.01
+#    print np.int64(np.round(errmat*100))
+#    print 'calculated from %d trials (nonprobe)' % len(t_ranges)
+#    if MAKE_MOVIE:
+#        print "making movie..."
+#        visual_analyzer.make_movie(inference_mats, actual_mats, times, DIVS,\
+#                                                 dirname+'/decoded.mp4')
+#        print 'made movie'
+#    print
 
 def process_subdirs(dirname):
     for d in glob(dirname + '/*'):
         print 'Now entering into directory "%s" :::::' % d
-        process_dir(d)
+        process_dir_proc(d, PROC_TO_RUN)
 
+
+PROC_TO_RUN = my_eval_proc
 if __name__ == '__main__':
-    process_subdirs('.')
+    from optparse import OptionParser
+    parser = OptionParser()
+    parser.add_option("-m", "--movie", action="store_true", dest="movie", default=False,
+            help="Generate movies using FFMPEG [default: False]")
+    parser.add_option("-d", "--directory", dest="directory",
+            default=".", help="Open all directories under DIR [default .]", metavar="DIR", type="string")
+    parser.add_option("-D", "--divisions", dest="divs", default=11,
+            help="Turn space into a DIVS x DIVS grid [default 11]", metavar="DIVS", type="int")
+    parser.add_option("-f", "--train-fraction", dest="train_fraction", default=0.5,
+            help="Use FRAC fraction of the data for the training set [default 0.5]", metavar="FRAC", type="float")
+    parser.add_option("-S", "--number-of-shuffles", dest="n_shuf_batch", default=(5000+20j),
+            help="USE N_SHUFS+N_BATCH*j shuffles per batch for calculating mutual information p-values [default 5000 shuffles 20 batches]", metavar="N_SHUFS", type="complex")
+    (options, args) = parser.parse_args()
+    MAKE_MOVIE = options.movie
+    DIVS = options.divs
+    TRAIN_FRACTION = options.train_fraction
+    N_SHUFS = int(options.n_shuf_batch.real)
+    N_BATCH = int(options.n_shuf_batch.imag)
+    process_subdirs(options.directory)
