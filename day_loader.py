@@ -69,28 +69,12 @@ def my_eval_proc(transients, xy, t_ranges):
         print 'made movie'
     print
 
+def sanity_checker(transients, xy, t_ranges):
+    print 'Running sanity check...'
+    err = place_decoder.self_predictor(xy, DIVS, TRAIN_FRACTION)
+    print 'The error was %f%%, it should be 0%%' % (100*err)
+######TODO: Augment this to do future prediction sanity checks, as well as full future prediction
 
-#def process_dir(dirname):
-#    print "Loading files..."
-#    traces, xy, t_ranges = load_from_dir(dirname)
-#    print "Detecting transients..."
-#    transients = tdet.detect(traces)
-#    print "Evaluating decoder..."
-#    err, errmat, inference_mats, actual_mats, times =\
-#        place_decoder.evaluate(transients, xy, DIVS, TRAIN_FRACTION, N_SHUFS, N_BATCH, LOOKBACK, t_ranges)
-#    np.random.shuffle(transients.T)
-#    base_err = place_decoder.evaluate(transients, xy, DIVS, TRAIN_FRACTION, N_SHUFS, N_BATCH, LOOKBACK, t_ranges)[0]
-#    print 'avg err rate is %f%%' % (100*err)
-#    print 'baseerr rate is %f%%' % (100*base_err)
-#    errmat[np.isnan(errmat)] = -0.01
-#    print np.int64(np.round(errmat*100))
-#    print 'calculated from %d trials (nonprobe)' % len(t_ranges)
-#    if MAKE_MOVIE:
-#        print "making movie..."
-#        visual_analyzer.make_movie(inference_mats, actual_mats, times, DIVS,\
-#                                                 dirname+'/decoded.mp4')
-#        print 'made movie'
-#    print
 
 def process_subdirs(dirname):
     for d in glob(dirname + '/*'):
@@ -112,10 +96,14 @@ if __name__ == '__main__':
             help="Use FRAC fraction of the data for the training set [default 0.5]", metavar="FRAC", type="float")
     parser.add_option("-S", "--number-of-shuffles", dest="n_shuf_batch", default=(5000+20j),
             help="USE N_SHUFS+N_BATCH*j shuffles per batch for calculating mutual information p-values [default 5000 shuffles 20 batches]", metavar="N_SHUFS", type="complex")
+    parser.add_option("--sanity-check", action="store_true", dest="sanity_check", default=False,
+            help="Run a sanity check instead of decoding [default: False]")
     (options, args) = parser.parse_args()
     MAKE_MOVIE = options.movie
     DIVS = options.divs
     TRAIN_FRACTION = options.train_fraction
     N_SHUFS = int(options.n_shuf_batch.real)
     N_BATCH = int(options.n_shuf_batch.imag)
+    if options.sanity_check:
+        PROC_TO_RUN = sanity_checker
     process_subdirs(options.directory)

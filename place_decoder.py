@@ -26,7 +26,12 @@ def include_history(transients, lookback=8):
         accum = np.vstack((accum, np.roll(transients, i)))
     return accum
 
-
+def self_predictor(rs, divs, train_frac):
+    cats = locs_to_cats(rs, divs)
+    n_cats = divs**2
+    fake_transients = np.eye(n_cats)[cats] == 1
+    err, err_by_loc, inferences, test_cats, times = dec.evaluate(cats, n_cats, fake_transients, train_frac)
+    return err
 #variable language:
 # x : variable of type x
 # xs: list of x typed variables
@@ -84,6 +89,25 @@ def muti_bin2(css, Nc, bs, nc):
     nb0 = N - nb1
     return 1./N * (np.nansum(ncs_1 * np.log(1.*N*ncs_1/nc/nb1),1) +\
                    np.nansum(ncs_0 * np.log(1.*N*ncs_0/nc/nb0),1))
+def mega_muti(css, Nc, bss, nc):
+    M_c, N_c = css.shape
+    M_b, N_b = bss.shape
+    assert N_c == N_b
+    N = N_c
+    assert len(nc) == Nc
+    ncss_1 = np.empty([M_b, M_c, Nc])
+    for i, bs in enumerate(bss):
+        for j, cs in enumerate(css):
+            ncss_1[i,j,:] = np.bincount(cs[bs==1], minlength=Nc)
+    ncss_0 = nc - ncss_1
+    nb1s = bss.sum(1)[:,None,None]
+    nb0s = N - nb1s
+    return 1./N * (np.nansum(ncss_1 * np.log(1.*N*ncss_1/nc/nb1s),2) +\
+                   np.nansum(ncss_0 * np.log(1.*N*ncss_0/nc/nb0s),2))
+def runbatch(clean_cats, n_shufs, uniq_cats, nc, transients, num_cells):
+    permcats = np.vstack([np.random.permutation(clean_cats) for _ in xrange(n_shufs)])
+    return np.vstack([muti_bin2(permcats, len(uniq_cats), tr, nc) for tr in transients[:num_cells]])
+    #return mega_muti(permcats, len(uniq_cats), transients[:num_cells], nc)
 
 def detect_valid_place_cells(cats, transients, n_shufs, n_batch, num_cells=None):
     if num_cells is None:
@@ -91,13 +115,15 @@ def detect_valid_place_cells(cats, transients, n_shufs, n_batch, num_cells=None)
     uniq_cats, clean_cats = np.unique(cats, return_inverse=True)
     nc = np.bincount(clean_cats, minlength=len(uniq_cats))
     mutis = np.apply_along_axis(lambda c: muti_bin2(clean_cats[None,:], len(uniq_cats), c, nc)[0], 1, transients[:num_cells])
-    batches = []
-    from tqdm import tqdm
-    for k in tqdm(xrange(n_batch), desc='batch processing mutual information'):
-        permcats = np.vstack([np.random.permutation(clean_cats) for _ in xrange(n_shufs)])
-        batches.append(np.vstack([muti_bin2(permcats, len(uniq_cats), tr, nc) for tr in transients[:num_cells]]))
-        #print '%d/%d' % (k+1, n_batch),
-    #print
+    #batches = []
+    #from tqdm import tqdm
+    #for k in tqdm(xrange(n_batch), desc='batch processing mutual information'):
+    #    permcats = np.vstack([np.random.permutation(clean_cats) for _ in xrange(n_shufs)])
+    #    batches.append(np.vstack([muti_bin2(permcats, len(uniq_cats), tr, nc) for tr in transients[:num_cells]]))
+    #    #print '%d/%d' % (k+1, n_batch),
+    ##print
+    from joblib import Parallel, delayed
+    batches = Parallel(n_jobs=3, verbose=11)(delayed(runbatch)(clean_cats, n_shufs, uniq_cats, nc, transients, num_cells) for k in xrange(n_batch))
     shuf_mutis = np.hstack(batches)
     qs = []
     for i in xrange(len(mutis)):
