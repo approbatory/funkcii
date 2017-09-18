@@ -1,4 +1,5 @@
 import numpy as np
+import numpy.ma as ma
 import decoder2 as dec
 
 from joblib import Parallel, delayed
@@ -57,6 +58,7 @@ def predictor(transients, rs, divs, train_frac, n_shufs, n_batch, lookback, rang
 
 def single_predict(cats, n_cats, transients, train_frac, n_shufs, n_batch, lookback, ranges, n_cells, f):
     rolled_cats = np.roll(cats, -f)
+    ranges = [(s-f,e-f) for s,e in ranges if s-f >= 0 and e-f >= 0]
     pats, failed_cells = process_transients(transients, rolled_cats, n_shufs, n_batch, lookback)
     print '->%d<-%d: %d out of %d had insignificant mutual information' % (f, lookback, failed_cells, n_cells)
     return memory.cache(dec.evaluate)(rolled_cats, n_cats, pats, train_frac, ranges)[0]
@@ -91,13 +93,13 @@ def self_predictor(rs, divs, train_frac, n_shufs, n_batch, lookback, ranges, fut
 #nx#: histogram entry from the x type of value #
 #a_?: variable labeled as belonging to logical category of ?
 def muti_bin2(css, Nc, bs, nc):
-    ncs_1 = np.apply_along_axis(lambda x: np.bincount(x, minlength=Nc), 1, css[:, bs==1])
+    ncs_1 = ma.array(np.apply_along_axis(lambda x: np.bincount(x, minlength=Nc), 1, css[:, bs==1]))
     ncs_0 = nc - ncs_1
     N = len(bs)
     nb1 = bs.sum()
     nb0 = N - nb1
-    return 1./N * (np.nansum(ncs_1 * np.log(1.*N*ncs_1/nc/nb1),1) +\
-                   np.nansum(ncs_0 * np.log(1.*N*ncs_0/nc/nb0),1))
+    return (1./N * (ma.sum(ncs_1 * ma.log(1.*N*ncs_1/nc/nb1),1).filled(0) +\
+                    ma.sum(ncs_0 * ma.log(1.*N*ncs_0/nc/nb0),1).filled(0)))
 
 def runbatch(clean_cats, n_shufs, uniq_cats, nc, transients, num_cells):
     permcats = np.vstack([np.random.permutation(clean_cats) for _ in xrange(n_shufs)])

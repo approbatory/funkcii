@@ -1,4 +1,5 @@
 import numpy as np
+import numpy.ma as ma
 def evaluate(cats, n_cats, pats, train_frac, ranges=None):
     test_time = int(train_frac * len(cats))
     train_cats, test_cats = cats[:test_time], cats[test_time:]
@@ -16,7 +17,7 @@ def evaluate(cats, n_cats, pats, train_frac, ranges=None):
         one_hot = np.eye(n_cats)[act]
         mistakes_by_loc += np.sum(one_hot * (inf != act)[:,np.newaxis],0)
         count_by_loc    += np.sum(one_hot                             ,0)
-    return (mistakes*1.0/count), (mistakes_by_loc*1.0/count_by_loc),\
+    return (mistakes*1.0/count), (ma.array(mistakes_by_loc)*1.0/count_by_loc).filled(-0.01),\
             inferences, test_cats, np.arange(test_time, len(cats))
 def infer(train_cats, test_cats, n_cats, train_pats, test_pats):
     cat_labels = np.array(sorted(list(set(train_cats))))

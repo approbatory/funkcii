@@ -8,7 +8,7 @@ def sliding_average(traces, window_size=3):
     return sig.convolve(traces, np.ones((1,window_size), dtype=int), 'same')/(1.*window_size)
 def detect_maxima(traces, z=2, width=5, sep=3):
     threshold = z*np.reshape(np.std(traces, axis=-1), (-1,1))
-    passing_threshold = traces >= threshold
+    passing_threshold = np.int64(traces >= threshold)
     repeated_passing = sig.convolve(passing_threshold, np.ones((1,width)), 'same') >= width
     local_maximum = np.pad(np.diff(np.int64(np.diff(traces) > 0)) < 0, ((0,0),(1,1)), 'constant', constant_values=(0,0))
     well_sep_max = local_maximum
@@ -71,7 +71,6 @@ def detect(real_traces, is_sparse=False):
     transient_history = transient_canvas
     #transient_dots = process_transient_dots(transients_maxima, transients_cleaned)
     #cell_ids, time_inds, magnitudes = transient_dots
-
     #return transient_dots
     if is_sparse:
         cell_ids, time_inds = transient_history.nonzero()
