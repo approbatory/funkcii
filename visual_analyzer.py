@@ -21,3 +21,16 @@ def make_movie(inference_mats, actual_mats, times, divs, fname):
             init_func=init, interval=25, blit=True)
     mywriter = anim.FFMpegWriter(fps=25)
     ani.save(fname, writer=mywriter)
+
+def viz_encoding(encoded_data, dirname, label):
+    import os
+    fname = os.path.join(dirname, 'viz_enc_'+label+'.png')
+    cat_labels, pc, pegc = encoded_data
+    plt.figure()
+    pegc = pegc[pegc.sum(1).argsort()]
+    img = plt.matshow(pegc, vmin=0, vmax=1)
+    plt.ylabel('event')
+    plt.xlabel('category')
+    plt.colorbar()
+    plt.savefig(fname)
+

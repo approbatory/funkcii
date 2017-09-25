@@ -22,8 +22,9 @@ def evaluate(transients, rs, divs, train_frac, n_shufs, n_batch, lookback, range
     pats, failed_cells = process_transients(transients, cats, n_shufs, n_batch, lookback)
     print '%d out of %d had insignificant mutual information' % (failed_cells, n_cells)
     err, err_by_loc, inferences, test_cats, times = dec.evaluate(cats, divs**2, pats, train_frac, ranges)
+    encoded_data = dec.encode(cats, transients.T==1)
     err_by_loc = err_by_loc.reshape([divs, divs])
-    return err, err_by_loc, one_hot_mats(inferences, divs), one_hot_mats(test_cats, divs), times
+    return err, err_by_loc, one_hot_mats(inferences, divs), one_hot_mats(test_cats, divs), times, encoded_data
 
 
 def include_history(transients, lookback=8):

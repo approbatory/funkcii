@@ -58,7 +58,7 @@ def process_dir_proc(dirname, proc):
 
 def my_eval_proc(transients, xy, t_ranges, dirname, label='unlabeled'):
     print "Evaluating decoder..."
-    err, errmat, inference_mats, actual_mats, times =\
+    err, errmat, inference_mats, actual_mats, times, encoded_data =\
         memory.cache(place_decoder.evaluate)(transients, xy, DIVS, TRAIN_FRACTION, N_SHUFS, N_BATCH, LOOKBACK, t_ranges)
     #np.random.shuffle(transients.T)
     #base_err = place_decoder.evaluate(transients, xy, DIVS, TRAIN_FRACTION, N_SHUFS, N_BATCH, LOOKBACK, t_ranges)[0]
@@ -67,6 +67,8 @@ def my_eval_proc(transients, xy, t_ranges, dirname, label='unlabeled'):
     errmat[np.isnan(errmat)] = -0.01
     print np.int64(np.round(errmat*100))
     print 'calculated from %d trials (nonprobe)' % len(t_ranges)
+    visual_analyzer.viz_encoding(encoded_data, dirname, label)
+    print 'made visualization for encoded data'
     if MAKE_MOVIE:
         print "making movie..."
         visual_analyzer.make_movie(inference_mats, actual_mats, times, DIVS,\
