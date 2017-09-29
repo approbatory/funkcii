@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib
-matplotlib.use("Agg")
+#matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.animation as anim
 def make_movie(inference_mats, actual_mats, times, divs, fname):
@@ -28,9 +28,10 @@ def viz_encoding(encoded_data, dirname, label):
     cat_labels, pc, pegc = encoded_data
     plt.figure()
     pegc = pegc[pegc.sum(1).argsort()]
-    img = plt.matshow(pegc, vmin=0, vmax=1)
+    img = plt.matshow(pegc, vmin=0, vmax=1, aspect='auto')
     plt.ylabel('event')
     plt.xlabel('category')
     plt.colorbar()
+    plt.title('%s session hit rates' % label)
     plt.savefig(fname)
 
