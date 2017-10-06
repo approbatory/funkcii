@@ -63,7 +63,7 @@ def process_dir_proc(dirname, proc, opt):
     print meta
     print "Detecting transients..."
     transients = memory.cache(tdet.detect)(traces)
-    if hasattr(opt, 'send_orignal_traces') and opt.send_original_traces:
+    if hasattr(opt, 'send_original_traces') and opt.send_original_traces:
         opt.original_traces = traces
     return proc(transients, xy, t_ranges, dirname, opt, label=meta['day_type'])
 
@@ -151,7 +151,7 @@ if __name__ == '__main__':
         proc_to_run = future_prediction
     else:
         proc_to_run = my_eval_proc
-    options.LOOKBACK = 8
+    options.LOOKBACK = 7
     if options.directory == '' and len(args) > 0:
         options.directory = args[0]
     else:

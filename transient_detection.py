@@ -6,7 +6,8 @@ def subtract_median_window(traces, window_size=101):
     return traces - sig.medfilt(traces, [1,window_size])
 def sliding_average(traces, window_size=3):
     return sig.convolve(traces, np.ones((1,window_size), dtype=int), 'same')/(1.*window_size)
-def detect_maxima(traces, z=2, width=5, sep=3):
+
+def detect_maxima_OLD(traces, z=1.5, width=5, sep=3):
     threshold = z*np.reshape(np.std(traces, axis=-1), (-1,1))
     passing_threshold = np.int64(traces >= threshold)
     repeated_passing = sig.convolve(passing_threshold, np.ones((1,width)), 'same') >= width
@@ -16,25 +17,60 @@ def detect_maxima(traces, z=2, width=5, sep=3):
         well_sep_max &= ~np.roll(local_maximum,i+1)
     valid_transient_peak = repeated_passing & well_sep_max
     return valid_transient_peak
-def process_transient_dots(valid_peaks, traces, offset_delay=3):
-    rows, cols = valid_peaks.nonzero()
-    peak_vals = traces[rows, cols]
-    num_peaks = len(cols)
-    transient_occurance_cols = []
-    for ix in xrange(num_peaks):
-        i, j = rows[ix], cols[ix]
-        dropping = True
-        old_val = traces[i,j]
-        while dropping and j>0:
-            j-=1
-            new_val = traces[i,j]
-            if new_val > old_val:
-                dropping = False
-            old_val = new_val
-        # transient occurance is midpoint of peak & previous trough, pushed back due to GCaMP delay
-        transient_occurance_cols.append((j + cols[ix])/2 - offset_delay)
-        #rise_time = cols[ix] - j
-    return rows, np.array(transient_occurance_cols), peak_vals #rows, cols, and values at peaks (not at transient start)
+def detect_maxima(traces, z=1.5, width=5, sep=3):
+    peaks_per_trace = []
+    for tr in traces:
+        thresh = np.std(tr)*z
+        passing = tr >= thresh
+        peaks = []
+        in_peak = 0
+        peak_start = 0
+        for i,p in enumerate(passing):
+            if in_peak!=0 and p:
+                in_peak += 1
+            if in_peak==0 and p:
+                in_peak = 1
+                peak_start = i
+            if in_peak!=0 and not p:
+                peaks.append((peak_start, in_peak))
+                in_peak = 0
+            if in_peak==0 and not p:
+                pass
+        good_peaks = []
+        end_last = 0
+        for (start, peak_len) in peaks:
+            if start > end_last+sep and peak_len >= width:
+                good_peaks.append((start, peak_len))
+            end_last = start+peak_len
+        peaks_per_trace.append(good_peaks)
+    return peaks_per_trace
+
+def paint_lines(good_peaks_per_trace, len_of_sess, offset=0):
+    canvas = np.zeros([len(good_peaks_per_trace), len_of_sess])
+    for cell_ind, peaks in enumerate(good_peaks_per_trace):
+        for (start, peak_len) in peaks:
+            canvas[cell_ind, (start-offset):(start+peak_len+1-offset)] = 1
+    return canvas
+
+#def process_transient_dots(valid_peaks, traces, offset_delay=3):
+#    rows, cols = valid_peaks.nonzero()
+#    peak_vals = traces[rows, cols]
+#    num_peaks = len(cols)
+#    transient_occurance_cols = []
+#    for ix in xrange(num_peaks):
+#        i, j = rows[ix], cols[ix]
+#        dropping = True
+#        old_val = traces[i,j]
+#        while dropping and j>0:
+#            j-=1
+#            new_val = traces[i,j]
+#            if new_val > old_val:
+#                dropping = False
+#            old_val = new_val
+#        # transient occurance is midpoint of peak & previous trough, pushed back due to GCaMP delay
+#        transient_occurance_cols.append((j + cols[ix])/2 - offset_delay)
+#        #rise_time = cols[ix] - j
+#    return rows, np.array(transient_occurance_cols), peak_vals #rows, cols, and values at peaks (not at transient start)
 
 def expand_transients(valid_peaks, traces, offset_delay=3):
     rows, cols = valid_peaks.nonzero()
@@ -61,12 +97,16 @@ def include_history(transients, lookback=8):
         accum = np.vstack((accum, np.roll(transients, i)))
     return accum
 
-def detect(real_traces, is_sparse=False):
+def detect(real_traces, is_sparse=False, using_ranges=False):
     transients = np.copy(real_traces)
     transients_sub_med = subtract_median_window(transients)
     transients_cleaned = sliding_average(transients_sub_med)
-    transients_maxima = detect_maxima(transients_cleaned)
-    transient_canvas = expand_transients(transients_maxima, transients_cleaned)
+    if not using_ranges:
+        transients_maxima = detect_maxima_OLD(transients_cleaned)
+        transient_canvas = expand_transients(transients_maxima, transients_cleaned)
+    else:
+        transients_maxima = detect_maxima(transients_cleaned)
+        transient_canvas = paint_lines(transients_maxima, transients.shape[1])
     ####transient_history = include_history(transient_canvas)
     transient_history = transient_canvas
     #transient_dots = process_transient_dots(transients_maxima, transients_cleaned)
