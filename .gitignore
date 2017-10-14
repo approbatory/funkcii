@@ -1,3 +1,6 @@
 *.pyc
 *.m~
 *.swp
+param_sweep_data.p
+.ipynb_checkpoints/
+trash/
