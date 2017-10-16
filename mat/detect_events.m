@@ -1,71 +1,71 @@
-function [ transient_canvas, outp ] = detect_events( traces )
+function transient_canvas = detect_events( traces )
 %DETECT_EVENTS detects transient events and outputs binary values for the
 %presence or absence of a transient
+
+%parameters
 params.med_window_size = 101;
 params.avg_window_size = 3;
 params.z = 1.5;
 params.width = 5;
-%params.sep = 3;
-%effective sep=4
 params.sep = 4;
 params.offset_delay = 3;
 
 %subtract median
-transients_sub_med = traces - medfilt1(traces, params.med_window_size, [], 2);
+transients_sub_med = traces - medfilt1(traces, params.med_window_size);
 
 %sliding average
-kern = ones(1,params.avg_window_size);
+kern = ones(params.avg_window_size,1);
 transients_cleaned = conv2(transients_sub_med, kern, 'same');
 transients_cleaned = transients_cleaned/params.avg_window_size;
 
 %maximum detection
-threshold = params.z*std(transients_cleaned, 1, 2);
-%passing_threshold = transients_cleaned >= threshold;
-passing_threshold = bsxfun(@(a,b) a>=b, transients_cleaned, threshold);
-kern = ones(1, params.width);
+threshold = params.z*std(transients_cleaned, 1);
+passing_threshold = bsxfun(@ge, transients_cleaned, threshold);
+kern = ones(params.width, 1);
+
 %repeated passing condition
 repeated_passing = conv2(1.0*passing_threshold, 1.0*kern, 'same') >= params.width;
-[rows, ~] = size(transients_cleaned);
-local_maximum = [zeros(rows, 1), diff(diff(transients_cleaned, 1, 2) > 0, 1, 2) < 0, zeros(rows, 1)];
+[~, cols] = size(transients_cleaned);
+local_maximum = [zeros(1, cols); diff(diff(transients_cleaned) > 0) < 0; zeros(1, cols)];
 well_sep_max = local_maximum;
-%replicate the bug from the python code whereby well_sep_max is not a copy
+%replicate the feature from the python code whereby well_sep_max is not a copy
 %of local_maximum, but the same object. So local maxima cannot invalidate a
-%local maximum if they have been invalidated themselves. genius
+%local maximum if they have been invalidated themselves.
 for i = 1:params.sep
-    %well_sep_max = well_sep_max & ~circshift(local_maximum, [0,i]);
-    well_sep_max = well_sep_max & ~circshift(well_sep_max, [0,i]);
+    well_sep_max = well_sep_max & ~circshift(well_sep_max, [i,0]);
 end
+
+%valid peaks are those that satisfy repeated passing and being a well
+%seperated local maximum
 valid_transient_peaks = repeated_passing & well_sep_max;
 
-%transient expansion
+%transient expansion: give a width to the events
 [rows, cols] = find(valid_transient_peaks~=0);
-num_peaks = length(cols);
+num_peaks = length(rows);
 transient_canvas = zeros(size(valid_transient_peaks));
 for ix = 1:num_peaks
     i = rows(ix);
     j = cols(ix);
     dropping = 1;
     old_val = transients_cleaned(i,j);
-    while dropping && j > 1
-        j = j-1;
+    while dropping && i > 1
+        i = i-1;
         new_val = transients_cleaned(i,j);
         if new_val > old_val
             dropping = 0;
         end
         old_val = new_val;
     end
-    %start_of_transient = max([j - params.offset_delay,1]);
-    %end_of_transient = max([cols(ix) - params.offset_delay,1]);
-    %TODO check this change
-    start_of_transient = j - params.offset_delay;
-    end_of_transient = cols(ix) - params.offset_delay;
+    start_of_transient = i - params.offset_delay;
+    end_of_transient = rows(ix) - params.offset_delay;
     if (start_of_transient >= 1) && (end_of_transient >= 1)
-        transient_canvas(i, start_of_transient:end_of_transient-1) = 1;
+        transient_canvas(start_of_transient:end_of_transient-1, j) = 1;
     end
 end
-outp{1} = traces;
-outp{2} = transients_sub_med;
-outp{3} = transients_cleaned;
-outp{4} = valid_transient_peaks;
-outp{5} = transient_canvas;
+%may be useful to return outp for debugging
+%%outp{1} = traces; %original traces
+%%outp{2} = transients_sub_med; %after subtracting the median
+%%outp{3} = transients_cleaned; %after sliding average
+%%outp{4} = valid_transient_peaks; %binary peak/no peak
+%%outp{5} = transient_canvas; %peaks with width during rise and offset
 end
