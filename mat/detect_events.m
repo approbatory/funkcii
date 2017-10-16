@@ -1,4 +1,4 @@
-function transient_canvas = detect_events( traces )
+function [transient_canvas, outp] = detect_events( traces )
 %DETECT_EVENTS detects transient events and outputs binary values for the
 %presence or absence of a transient
 
@@ -63,9 +63,9 @@ for ix = 1:num_peaks
     end
 end
 %may be useful to return outp for debugging
-%%outp{1} = traces; %original traces
-%%outp{2} = transients_sub_med; %after subtracting the median
-%%outp{3} = transients_cleaned; %after sliding average
-%%outp{4} = valid_transient_peaks; %binary peak/no peak
-%%outp{5} = transient_canvas; %peaks with width during rise and offset
+outp{1} = traces; %original traces
+outp{2} = transients_sub_med; %after subtracting the median
+outp{3} = transients_cleaned; %after sliding average
+outp{4} = valid_transient_peaks; %binary peak/no peak
+outp{5} = transient_canvas; %peaks with width during rise and offset
 end
