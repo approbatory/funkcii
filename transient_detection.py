@@ -88,7 +88,8 @@ def expand_transients(valid_peaks, traces, offset_delay=3):
             old_val = new_val
         start_of_transient = j - offset_delay
         end_of_transient = cols[ix] - offset_delay
-        transient_canvas[i,start_of_transient:end_of_transient] = 1
+        if (start_of_transient >= 0) and (end_of_transient >= 0):
+            transient_canvas[i,start_of_transient:end_of_transient] = 1
     return transient_canvas
 
 def include_history(transients, lookback=8):
