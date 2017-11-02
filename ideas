@@ -1,0 +1,39 @@
+experiments can seperate conditions by having 
+T x N x C array
+
+having a readout of the neural vector (N) to get
+T x C
+
+and then comparing the (T) vectors across (C) conditions, showing that they are separated, with e.g. the variance explained (significantly more than the control)
+
+As a control, shuffle each T x 1 x C slice across C. 
+so T x 1 x [1 2 3] => T x 1 x [2 3 1] (e.g.)
+If the results are the same, or not significantly different, 
+then the condition C cannot be distinguished or read out from the data
+
+
+Now take the problem of future prediction of END arm only.
+Take as features the neural activities from t=before gate opens to t=right before the paths bifurcate.
+    For each such set of features there is a supervision label: the correct end arm. This is the variable we are trying to predict.
+        The we have
+                  trial a|trial b|trial c|trial d|trial e...
+neuron\condition | N arm | S arm | N arm | S arm | S arm ...
+_________________|_______|_______|_______|_______|_________________
+neuron # 1       |n1a(t) | n1b(t)| n1c(t)| n1d(t)| n1e(t)...
+neuron # 2       |n2a(t) | n2b(t)| n2c(t)| n2d(t)| n2e(t)...
+neuron # 3       |n3a(t) | n3b(t)| n3c(t)| n3d(t)| n3e(t)...
+...              |.................
+neuron # k       |nka(t) | nkb(t)| nkc(t)| nkd(t)| nke(t)...
+
+Evaluate the performance of these data^,
+but for a control, do not simply shuffle the conditions,
+    but produce a control that maintains the correlations of 
+    neurons with conditions
+
+    If I understand it correctly, will an independence assumption (like if using naive bayes) result in getting the same performance on the control as on the real data?)
+       (It should if the cooccurence matrix (k x 2 table showing how many times neuron k fired when the condition was N vs. when it was S) stays the same, because the cooccurence matrix assumes independence)
+    The moral is: produce control data such that the cooccurence matrix remains as it is)
+    Procedure:
+    Look at neuron j. Look at the subset of neuron j where the condition was c. Shuffle the values of that subset.
+        Do so for each neuron and each condition. This will break any dependence that may exist.
+            (I.E. split the array across the "trial" axis into one with only N trial and another with only S trials and then do the ordinary condition shuffle on each one; bonus if using the CFR or TME methods... then naive bayes should have identical performance)
