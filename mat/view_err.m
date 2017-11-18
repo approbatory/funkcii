@@ -1,12 +1,16 @@
-function view_err(ds, poss, err, err_map)
+function view_err(ds, poss, err, err_map, label, varargin)
 %VIEW_ERR Summary of this function goes here
 %   Detailed explanation goes here
+save_figs = ~isempty(varargin) && strcmp(varargin{1}, 'save');
 POS_LABEL = 'position along arm (0.25=middle of arm)';
 figure;
 plot(poss, err, '-x');
-title('End arm Multinomial-NB decoding vs. position along arm');
+title(sprintf('%s: End arm decoding (NB) vs. position', label));
 xlabel(POS_LABEL);
 ylabel('Leave-1-out x-val error');
+if save_figs
+    print(sprintf('Multinomial_NB_error_curve_for_%s.png',label), '-dpng');
+end
 
 figure;
 imagesc(1 - err_map - (1-err_map).*0.1.*mod((1:size(err_map,1))',2));
@@ -27,7 +31,10 @@ t = text(n_pos+2, n_trials/4, 'non-rewarded in red');
 t.Rotation = -90;
 xlabel(POS_LABEL);
 ylabel('Trial number');
-title('Map of errors (black)');
+title(sprintf('%s: Map of errors (black)', label));
+if save_figs
+    print(sprintf('Multinomial_NB_error_map_for_%s.png',label), '-dpng');
+end
 
 end
 
