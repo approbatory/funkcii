@@ -1,9 +1,25 @@
-if ~exist('X', 'var') || ~exist('Xf', 'var') 
-X = sprand(1e4,1e3,0.03);
-Xf = full(X);
+clear
+
+M = 1e4; N = 1e3; K = 20; s = 0.03;
+ks = randi(K, M, 1);
+%X = sparse(ks + rand(M,N)*0.1);
+X = sprand(M, N, s);
+
+featmask = logical(sparse(N,1));
+%%
+tic
+g = shufgen(X,ks);
+Xs = cell(1,100);
+for i = 1:100
+    featmask(i*10) = true;
+    Xs{i} = g(featmask);
+    featmask(i*10) = false;
 end
- 
-Xfs = spshuffle(X,ks);
+toc
+
+%tic
+%Xfs = spshuffle(Xf,ks);
+%toc
 
 % [M,N] = size(X);
 % [i,j,s] = find(X);

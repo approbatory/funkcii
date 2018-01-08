@@ -1,24 +1,11 @@
-function X = spshuffle(X, ks, rep, featmask)
+function gen = shufgen(X, ks)
+if ~issparse(X)
+    error('Can only shuffle sparse arrays');
+end
 ks = ks(:)';
 K_vals = unique(ks);
-[~,N] = size(X);
-
-if issparse(X)
-    [ii,jj,ss] = sp2cell(X);
-    ii_shuf = cell(1,rep);
-    X = cell(1,rep);
-    for r = 1:rep
-        ii_shuf{r} = cellshuf(ii, ks, K_vals, featmask);
-        X{r} = cell2sp(ii_shuf{r}, jj, ss);
-    end
-else
-    for k = K_vals
-        is = find(ks == k);
-        for jj = 1:N
-            X(is, jj) = X(is(randperm(length(is))),jj);
-        end
-    end
-end
+[ii,jj,ss] = sp2cell(X);
+gen = @(featmask) cell2sp(cellshuf(ii, ks, K_vals, featmask), jj, ss);
 end
 
 function ii = cellshuf(ii, ks, K_vals, featmask)
